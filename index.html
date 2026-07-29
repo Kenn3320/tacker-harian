@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Floxen Daily Tracker</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B0B0D">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Floxen Tracker">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0B0B0D;
+    --bg-elevated: #131316;
+    --line: #232327;
+    --gold: #F2B84C;
+    --gold-dim: rgba(242,184,76,0.14);
+    --text: #EDEDEF;
+    --text-dim: #8A8A93;
+    --text-faint: #55555C;
+    --done: #4CAF7D;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    min-height:100vh;
+    padding: 32px 16px 80px;
+  }
+  .wrap{ max-width: 620px; margin: 0 auto; }
+
+  header{ margin-bottom: 18px; }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    color: var(--gold);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  h1{ font-size: 26px; font-weight: 800; letter-spacing: -0.01em; }
+  .date-row{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    margin-top: 6px;
+  }
+  .date-row span{ color: var(--text-dim); font-size: 14px; }
+
+  #installBtn{
+    display:none; margin: 14px 0 0; width:100%;
+    background: var(--gold-dim); color: var(--gold);
+    border: 1px solid rgba(242,184,76,0.35); border-radius: 10px;
+    padding: 11px 14px; font-family:'Plus Jakarta Sans',sans-serif;
+    font-weight:700; font-size:13px; cursor:pointer;
+  }
+  #iosHint{
+    display:none; margin-top:14px; background: var(--bg-elevated);
+    border:1px solid var(--line); border-radius:10px; padding:12px 14px;
+    font-size:12.5px; color: var(--text-dim); line-height:1.6;
+  }
+  #iosHint b{ color: var(--text); }
+
+  .stats{
+    display:grid; grid-template-columns: repeat(3,1fr); gap: 10px;
+    margin: 22px 0 30px;
+  }
+  .stat{
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .stat .num{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 22px; font-weight:600; color: var(--gold);
+  }
+  .stat .label{ font-size: 11px; color: var(--text-dim); margin-top:2px; }
+
+  .progress-bar{
+    height: 6px; background: var(--line); border-radius: 999px;
+    overflow:hidden; margin-bottom: 26px;
+  }
+  .progress-fill{
+    height:100%; background: linear-gradient(90deg, var(--gold), #d99a2b);
+    width:0%; transition: width .4s ease;
+  }
+
+  .timeline{ position: relative; padding-left: 26px; }
+  .timeline::before{
+    content:''; position:absolute; left: 6px; top: 6px; bottom: 6px;
+    width: 1px; background: var(--line);
+  }
+
+  .block{
+    position: relative;
+    background: var(--bg-elevated);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    display:flex; align-items:center; gap: 14px;
+    cursor:pointer;
+    transition: border-color .2s ease, background .2s ease;
+  }
+  .block:hover{ border-color: #333338; }
+  .block::before{
+    content:''; position:absolute; left: -26px; top: 50%;
+    transform: translateY(-50%);
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--text-faint);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .block.done::before{ background: var(--done); box-shadow: 0 0 0 1px var(--done); }
+  .block.now::before{ background: var(--gold); box-shadow: 0 0 0 4px var(--gold-dim); }
+
+  .block.now{ border-color: var(--gold); }
+
+  .checkbox{
+    width: 22px; height: 22px; min-width:22px;
+    border-radius: 6px;
+    border: 1.5px solid var(--text-faint);
+    display:flex; align-items:center; justify-content:center;
+    transition: all .15s ease;
+  }
+  .block.done .checkbox{ background: var(--done); border-color: var(--done); }
+  .checkbox svg{ width:13px; height:13px; opacity:0; transition: opacity .15s ease; }
+  .block.done .checkbox svg{ opacity:1; }
+
+  .block-info{ flex:1; min-width:0; }
+  .time{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--text-dim); letter-spacing:0.02em;
+  }
+  .title{
+    font-size: 15px; font-weight: 600; margin-top: 2px;
+    color: var(--text);
+  }
+  .block.done .title{ color: var(--text-dim); text-decoration: line-through; text-decoration-color: var(--text-faint); }
+  .tag{
+    font-family:'JetBrains Mono', monospace;
+    font-size: 10px; padding: 3px 8px; border-radius: 6px;
+    background: var(--gold-dim); color: var(--gold);
+    white-space: nowrap;
+  }
+  .tag.rest{ background: rgba(140,140,150,0.12); color: var(--text-dim); }
+  .tag.mc{ background: rgba(76,175,125,0.12); color: var(--done); }
+  .tag.workout{ background: rgba(242,120,76,0.14); color: #F2784C; }
+
+  footer{
+    margin-top: 30px; text-align:center;
+    font-family:'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--text-faint);
+  }
+  footer button{
+    background:none; border: none; color: var(--text-faint);
+    text-decoration: underline; cursor:pointer; font-family: inherit; font-size: inherit;
+  }
+  footer button:hover{ color: var(--text-dim); }
+
+  .loading{ text-align:center; color: var(--text-dim); padding: 40px 0; font-family:'JetBrains Mono', monospace; font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="eyebrow">Floxen · Daily Tracker</div>
+      <h1>Jadwal Hari Ini</h1>
+      <div class="date-row">
+        <span id="dateLabel">—</span>
+        <span id="streakLabel"></span>
+      </div>
+      <button id="installBtn">📲 Install ke Home Screen</button>
+      <div id="iosHint">📲 Di Safari: ketuk ikon <b>Share</b> (kotak, panah ke atas) → <b>Add to Home Screen</b>.</div>
+    </header>
+
+    <div class="stats">
+      <div class="stat"><div class="num" id="doneCount">0/9</div><div class="label">Selesai</div></div>
+      <div class="stat"><div class="num" id="pctCount">0%</div><div class="label">Progress</div></div>
+      <div class="stat"><div class="num" id="streakCount">0</div><div class="label">Hari beruntun</div></div>
+    </div>
+
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+    <div id="timelineWrap" class="loading">Memuat...</div>
+
+    <footer>
+      <span id="saveStatus">tersimpan otomatis</span> · <button id="resetBtn">reset hari ini</button>
+    </footer>
+  </div>
+
+<script>
+const SCHEDULE = [
+  { id: 'wake',   time: '06:00 – 06:30', title: 'Bangun, mandi, sarapan',        tag: 'rutin' },
+  { id: 'school1',time: '06:30 – 15:00', title: 'Sekolah',                        tag: 'sekolah' },
+  { id: 'rest1',  time: '15:00 – 15:30', title: 'Pulang, istirahat',              tag: 'rest' },
+  { id: 'eat1',   time: '15:30 – 16:00', title: 'Makan',                            tag: 'rest' },
+  { id: 'workout',time: '16:00 – 16:30', title: 'Workout ringan',                    tag: 'workout' },
+  { id: 'study1', time: '16:30 – 17:30', title: 'Belajar / coding — sesi 1',      tag: 'belajar' },
+  { id: 'rest2',  time: '17:30 – 18:30', title: 'Berdoa / istirahat / mandi sore', tag: 'rest' },
+  { id: 'dinner', time: '18:30 – 19:30', title: 'Makan malam + keluarga',          tag: 'rest' },
+  { id: 'study2', time: '19:30 – 20:30', title: 'Belajar / coding — sesi 2',      tag: 'belajar' },
+  { id: 'review', time: '20:30 – 21:00', title: 'Review harian + update tracker', tag: 'belajar' },
+  { id: 'free2',  time: '21:00 – 22:00', title: 'Free time (Minecraft, batas jelas)', tag: 'mc' },
+  { id: 'wind',   time: '22:00 – 22:30', title: 'Wind down, siap tidur',           tag: 'rest' },
+];
+
+function todayKey(){
+  const d = new Date();
+  return `daily-tracker:${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function fmtDate(){
+  const d = new Date();
+  return d.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long' });
+}
+function minutesNow(){
+  const d = new Date();
+  return d.getHours()*60 + d.getMinutes();
+}
+function parseRange(range){
+  const [a,b] = range.split('–').map(s=>s.trim());
+  const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+  return [toMin(a), toMin(b)];
+}
+
+let state = {};
+
+function tagClass(tag){
+  if (tag === 'rest') return 'tag rest';
+  if (tag === 'mc') return 'tag mc';
+  if (tag === 'workout') return 'tag workout';
+  return 'tag';
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(todayKey());
+    state = raw ? JSON.parse(raw) : {};
+  }catch(e){
+    state = {};
+  }
+  render();
+  computeStreak();
+}
+
+function saveState(){
+  const statusEl = document.getElementById('saveStatus');
+  try{
+    localStorage.setItem(todayKey(), JSON.stringify(state));
+    statusEl.textContent = 'tersimpan otomatis';
+  }catch(e){
+    statusEl.textContent = 'gagal menyimpan';
+  }
+}
+
+function computeStreak(){
+  let streak = 0;
+  let d = new Date();
+  for(let i=0;i<60;i++){
+    const key = `daily-tracker:${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const raw = localStorage.getItem(key);
+    if(!raw){ if(i===0){ d.setDate(d.getDate()-1); continue; } break; }
+    try{
+      const s = JSON.parse(raw);
+      const doneCount = Object.values(s).filter(Boolean).length;
+      const pct = doneCount / SCHEDULE.length;
+      if(pct >= 0.6){ streak++; d.setDate(d.getDate()-1); }
+      else break;
+    }catch(e){ break; }
+  }
+  document.getElementById('streakCount').textContent = streak;
+}
+
+function render(){
+  document.getElementById('dateLabel').textContent = fmtDate();
+  const wrap = document.getElementById('timelineWrap');
+  wrap.className = 'timeline';
+  wrap.innerHTML = '';
+  const now = minutesNow();
+
+  let doneCount = 0;
+  SCHEDULE.forEach(block => {
+    const [start, end] = parseRange(block.time);
+    const isNow = now >= start && now < end;
+    const isDone = !!state[block.id];
+    if(isDone) doneCount++;
+
+    const el = document.createElement('div');
+    el.className = 'block' + (isDone ? ' done' : '') + (isNow && !isDone ? ' now' : '');
+    el.innerHTML = `
+      <div class="checkbox">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#0B0B0D" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <div class="block-info">
+        <div class="time">${block.time}</div>
+        <div class="title">${block.title}</div>
+      </div>
+      <div class="${tagClass(block.tag)}">${block.tag}</div>
+    `;
+    el.addEventListener('click', () => toggleBlock(block.id));
+    wrap.appendChild(el);
+  });
+
+  const pct = Math.round((doneCount / SCHEDULE.length) * 100);
+  document.getElementById('doneCount').textContent = `${doneCount}/${SCHEDULE.length}`;
+  document.getElementById('pctCount').textContent = `${pct}%`;
+  document.getElementById('progressFill').style.width = `${pct}%`;
+}
+
+function toggleBlock(id){
+  state[id] = !state[id];
+  render();
+  saveState();
+}
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if(confirm('Reset checklist hari ini?')){
+    state = {};
+    render();
+    saveState();
+  }
+});
+
+loadState();
+setInterval(render, 60000);
+
+// ── Install ke Home Screen ─────────────────────────────
+let deferredPrompt;
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display = 'block';
+});
+
+installBtn.addEventListener('click', async () => {
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  installBtn.style.display = 'none';
+});
+
+window.addEventListener('appinstalled', () => {
+  installBtn.style.display = 'none';
+});
+
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+if(isIOS && !isStandalone){
+  document.getElementById('iosHint').style.display = 'block';
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
