@@ -321,6 +321,7 @@ function toggleBlock(id){
   state[id] = !state[id];
   render();
   saveState();
+  computeStreak();
 }
 
 document.getElementById('resetBtn').addEventListener('click', () => {
