@@ -54,6 +54,17 @@
   }
   .date-row span{ color: var(--text-dim); font-size: 14px; }
 
+  .mode-toggle{
+    display:flex; gap:6px; margin-top:16px;
+    background: var(--bg-elevated); border:1px solid var(--line); border-radius:11px; padding:4px;
+  }
+  .mode-btn{
+    flex:1; background:transparent; border:none; border-radius:8px;
+    color: var(--text-dim); font-family:'Plus Jakarta Sans',sans-serif; font-weight:700;
+    font-size:13px; padding:10px 10px; cursor:pointer; transition: all .15s ease;
+  }
+  .mode-btn.active{ background: var(--gold-dim); color: var(--gold); }
+
   #installBtn{
     display:none; margin: 14px 0 0; width:100%;
     background: var(--gold-dim); color: var(--gold);
@@ -178,6 +189,13 @@
         <span id="dateLabel">—</span>
         <span id="streakLabel"></span>
       </div>
+      <div id="holidayBadge" style="display:none; margin-top:8px; font-size:12px; background:var(--gold-dim); color:var(--gold); border:1px solid rgba(242,184,76,0.3); border-radius:8px; padding:7px 10px;"></div>
+
+      <div class="mode-toggle">
+        <button id="modeSekolah" class="mode-btn active">🏫 Sekolah</button>
+        <button id="modeLibur" class="mode-btn">🎮 Libur</button>
+      </div>
+
       <button id="installBtn">📲 Install ke Home Screen</button>
       <div id="iosHint">📲 Di Safari: ketuk ikon <b>Share</b> (kotak, panah ke atas) → <b>Add to Home Screen</b>.</div>
     </header>
@@ -198,7 +216,7 @@
   </div>
 
 <script>
-const SCHEDULE = [
+const SCHEDULE_SEKOLAH = [
   { id: 'wake',   time: '06:00 – 06:30', title: 'Bangun, mandi, sarapan',        tag: 'rutin' },
   { id: 'school1',time: '06:30 – 15:00', title: 'Sekolah',                        tag: 'sekolah' },
   { id: 'rest1',  time: '15:00 – 15:30', title: 'Pulang, istirahat',              tag: 'rest' },
@@ -212,6 +230,23 @@ const SCHEDULE = [
   { id: 'free2',  time: '21:00 – 22:00', title: 'Free time (Minecraft, batas jelas)', tag: 'mc' },
   { id: 'wind',   time: '22:00 – 22:30', title: 'Wind down, siap tidur',           tag: 'rest' },
 ];
+
+const SCHEDULE_LIBUR = [
+  { id: 'wake',    time: '07:00 – 07:30', title: 'Bangun, mandi, sarapan',         tag: 'rutin' },
+  { id: 'workout', time: '07:30 – 08:00', title: 'Workout ringan',                  tag: 'workout' },
+  { id: 'free1',   time: '08:00 – 09:00', title: 'Free time pagi',                  tag: 'mc' },
+  { id: 'study',   time: '09:00 – 12:00', title: 'Belajar / coding (3 jam)',        tag: 'belajar' },
+  { id: 'lunch',   time: '12:00 – 13:00', title: 'Makan siang + istirahat',         tag: 'rest' },
+  { id: 'free2',   time: '13:00 – 16:00', title: 'Free time (Minecraft dll)',       tag: 'mc' },
+  { id: 'rest2',   time: '16:00 – 17:00', title: 'Berdoa / istirahat / mandi sore', tag: 'rest' },
+  { id: 'dinner',  time: '17:00 – 18:00', title: 'Makan malam + keluarga',          tag: 'rest' },
+  { id: 'free3',   time: '18:00 – 20:30', title: 'Free time',                       tag: 'mc' },
+  { id: 'review',  time: '20:30 – 21:00', title: 'Review harian + update tracker',  tag: 'belajar' },
+  { id: 'wind',    time: '21:00 – 21:30', title: 'Wind down, siap tidur',           tag: 'rest' },
+];
+
+let SCHEDULE = SCHEDULE_SEKOLAH;
+let currentMode = 'sekolah';
 
 function todayKey(){
   const d = new Date();
@@ -240,13 +275,84 @@ function tagClass(tag){
   return 'tag';
 }
 
+function scheduleFor(mode){
+  return mode === 'libur' ? SCHEDULE_LIBUR : SCHEDULE_SEKOLAH;
+}
+
+function updateModeButtons(){
+  document.getElementById('modeSekolah').classList.toggle('active', currentMode === 'sekolah');
+  document.getElementById('modeLibur').classList.toggle('active', currentMode === 'libur');
+}
+
+function setMode(mode){
+  if(mode === currentMode) return;
+  const hasProgress = Object.values(state).some(Boolean);
+  if(hasProgress && !confirm('Ganti mode bakal reset checklist hari ini. Lanjut?')) return;
+  currentMode = mode;
+  SCHEDULE = scheduleFor(mode);
+  state = {};
+  updateModeButtons();
+  render();
+  saveState();
+  computeStreak();
+}
+
+// Hari Libur Nasional & Cuti Bersama 2026 — sesuai SKB 3 Menteri No. 1497/2/5 Tahun 2025
+const HOLIDAYS_2026 = {
+  '2026-01-01': 'Tahun Baru Masehi',
+  '2026-01-16': 'Isra Mikraj Nabi Muhammad SAW',
+  '2026-02-16': 'Cuti Bersama Imlek',
+  '2026-02-17': 'Tahun Baru Imlek',
+  '2026-03-18': 'Cuti Bersama Nyepi',
+  '2026-03-19': 'Hari Suci Nyepi',
+  '2026-03-20': 'Cuti Bersama Idulfitri',
+  '2026-03-21': 'Idulfitri (Hari 1)',
+  '2026-03-22': 'Idulfitri (Hari 2)',
+  '2026-03-23': 'Cuti Bersama Idulfitri',
+  '2026-03-24': 'Cuti Bersama Idulfitri',
+  '2026-04-03': 'Wafat Yesus Kristus',
+  '2026-04-05': 'Kebangkitan Yesus Kristus (Paskah)',
+  '2026-05-01': 'Hari Buruh Internasional',
+  '2026-05-14': 'Kenaikan Yesus Kristus',
+  '2026-05-15': 'Cuti Bersama Kenaikan Yesus Kristus',
+  '2026-05-27': 'Iduladha',
+  '2026-05-28': 'Cuti Bersama Iduladha',
+  '2026-05-31': 'Hari Raya Waisak',
+  '2026-06-01': 'Hari Lahir Pancasila',
+  '2026-06-16': 'Tahun Baru Islam (1 Muharam)',
+  '2026-08-17': 'Proklamasi Kemerdekaan RI',
+  '2026-08-25': 'Maulid Nabi Muhammad SAW',
+  '2026-12-24': 'Cuti Bersama Natal',
+  '2026-12-25': 'Hari Raya Natal',
+};
+
+function getHolidayToday(){
+  return HOLIDAYS_2026[todayKey().replace('daily-tracker:', '')] || null;
+}
+
+function defaultModeForToday(){
+  if(getHolidayToday()) return 'libur';
+  const day = new Date().getDay(); // 0 = Minggu, 6 = Sabtu
+  return (day === 0 || day === 6) ? 'libur' : 'sekolah';
+}
+
 function loadState(){
   try{
     const raw = localStorage.getItem(todayKey());
-    state = raw ? JSON.parse(raw) : {};
+    if(raw){
+      const parsed = JSON.parse(raw);
+      currentMode = parsed.mode || defaultModeForToday();
+      state = parsed.items || {};
+    } else {
+      currentMode = defaultModeForToday();
+      state = {};
+    }
   }catch(e){
+    currentMode = defaultModeForToday();
     state = {};
   }
+  SCHEDULE = scheduleFor(currentMode);
+  updateModeButtons();
   render();
   computeStreak();
 }
@@ -254,7 +360,7 @@ function loadState(){
 function saveState(){
   const statusEl = document.getElementById('saveStatus');
   try{
-    localStorage.setItem(todayKey(), JSON.stringify(state));
+    localStorage.setItem(todayKey(), JSON.stringify({ mode: currentMode, items: state }));
     statusEl.textContent = 'tersimpan otomatis';
   }catch(e){
     statusEl.textContent = 'gagal menyimpan';
@@ -269,9 +375,12 @@ function computeStreak(){
     const raw = localStorage.getItem(key);
     if(!raw){ if(i===0){ d.setDate(d.getDate()-1); continue; } break; }
     try{
-      const s = JSON.parse(raw);
-      const doneCount = Object.values(s).filter(Boolean).length;
-      const pct = doneCount / SCHEDULE.length;
+      const parsed = JSON.parse(raw);
+      const dayMode = parsed.mode || 'sekolah';
+      const daySchedule = scheduleFor(dayMode);
+      const items = parsed.items || {};
+      const doneCount = Object.values(items).filter(Boolean).length;
+      const pct = doneCount / daySchedule.length;
       if(pct >= 0.6){ streak++; d.setDate(d.getDate()-1); }
       else break;
     }catch(e){ break; }
@@ -281,6 +390,14 @@ function computeStreak(){
 
 function render(){
   document.getElementById('dateLabel').textContent = fmtDate();
+  const holidayEl = document.getElementById('holidayBadge');
+  const holidayName = getHolidayToday();
+  if(holidayName){
+    holidayEl.textContent = `🎉 Libur Nasional: ${holidayName}`;
+    holidayEl.style.display = 'block';
+  } else {
+    holidayEl.style.display = 'none';
+  }
   const wrap = document.getElementById('timelineWrap');
   wrap.className = 'timeline';
   wrap.innerHTML = '';
@@ -329,8 +446,12 @@ document.getElementById('resetBtn').addEventListener('click', () => {
     state = {};
     render();
     saveState();
+    computeStreak();
   }
 });
+
+document.getElementById('modeSekolah').addEventListener('click', () => setMode('sekolah'));
+document.getElementById('modeLibur').addEventListener('click', () => setMode('libur'));
 
 loadState();
 setInterval(render, 60000);
